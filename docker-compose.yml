@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: speechtotextdb
+      POSTGRES_USER: speechuser
+      POSTGRES_PASSWORD: speechpass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  # LanguageTool Service
+  languagetool:
+    image: erikvl87/languagetool
+    ports:
+      - "8081:8080"
+    environment:
+      - Java_Xms=512m
+      - Java_Xmx=1g
+
+  # Django Backend
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=False
+      - SECRET_KEY=your-production-secret-key-change-this
+      - DATABASE_URL=postgres://speechuser:speechpass@db:5432/speechtotextdb
+      - LANGUAGETOOL_URL=http://languagetool:8080/v2/check
+      - ALLOWED_HOSTS=localhost,127.0.0.1,your-domain.com
+      - WHISPER_MODEL=tiny
+    volumes:
+      - ./backend/media:/app/media
+    depends_on:
+      - db
+      - languagetool
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+
+  # React Frontend
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000/api
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
