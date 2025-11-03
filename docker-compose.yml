@@ -20,14 +20,14 @@ services:
 
   # LanguageTool Service
   languagetool:
-    image: erikvl87/languagetool
+    image: silviof/docker-languagetool:latest
     ports:
-      - "8081:8080"
+      - "8081:8010"
     environment:
       - Java_Xms=512m
       - Java_Xmx=1g
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/v2/languages"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8010/v2/languages"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -41,7 +41,7 @@ services:
       - DEBUG=True
       - SECRET_KEY=dev-secret-key-change-in-production
       - DATABASE_URL=postgres://speechuser:speechpass@db:5432/speechtotextdb
-      - LANGUAGETOOL_URL=http://languagetool:8080/v2/check
+      - LANGUAGETOOL_URL=http://languagetool:8010/v2/check
       - ALLOWED_HOSTS=localhost,127.0.0.1,backend
       - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
       - WHISPER_MODEL=tiny
