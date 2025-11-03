@@ -9,3 +9,4 @@ noisereduce==3.0.0
 soundfile==0.12.1
 dj-database-url==2.1.0
 whitenoise==6.6.0
+gunicorn==21.2.0

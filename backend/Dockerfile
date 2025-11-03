@@ -18,17 +18,21 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Install Gunicorn for production
+RUN pip install gunicorn
+
 # Copy project
 COPY . .
+
+# Copy startup script
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
 
 # Create media directory
 RUN mkdir -p media/audio
 
-# Collect static files
-RUN python manage.py collectstatic --noinput
-
-# Expose port
+# Expose port (Railway will set PORT env var)
 EXPOSE 8000
 
 # Run the application
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["/app/start.sh"]
