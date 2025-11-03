@@ -4,7 +4,9 @@ import AudioRecorder from './components/AudioRecorder';
 import TranscriptList from './components/TranscriptList';
 import Header from './components/Header';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+// Allow overriding the backend URL via environment variable in production
+// Set REACT_APP_API_BASE_URL to e.g. 'https://your-backend.example.com/api'
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api';
 
 function App() {
   const [transcripts, setTranscripts] = useState([]);
