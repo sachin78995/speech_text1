@@ -12,6 +12,10 @@ RUN npm ci --only=production
 # Copy source code
 COPY . .
 
+# Accept build argument for API URL
+ARG REACT_APP_API_BASE_URL=http://localhost:8000/api
+ENV REACT_APP_API_BASE_URL=$REACT_APP_API_BASE_URL
+
 # Build the app
 RUN npm run build
 

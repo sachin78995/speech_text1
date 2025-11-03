@@ -24,9 +24,13 @@ RUN pip install gunicorn
 # Copy project
 COPY . .
 
-# Copy startup script
+# Copy startup scripts
 COPY start.sh /app/start.sh
-RUN chmod +x /app/start.sh
+COPY start-dev.sh /app/start-dev.sh
+RUN chmod +x /app/start.sh /app/start-dev.sh
+
+# Install netcat for health checks and database waiting
+RUN apt-get update && apt-get install -y netcat-openbsd curl && rm -rf /var/lib/apt/lists/*
 
 # Create media directory
 RUN mkdir -p media/audio
@@ -34,5 +38,6 @@ RUN mkdir -p media/audio
 # Expose port (Railway will set PORT env var)
 EXPOSE 8000
 
-# Run the application
+# For development, we'll override this in docker-compose
+# For production (Railway), use the startup script
 CMD ["/app/start.sh"]
