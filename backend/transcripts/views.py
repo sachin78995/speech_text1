@@ -67,8 +67,13 @@ def transcribe_audio(request):
             )
         
         # Process audio using service
+        print("DEBUG: Initializing TranscriptService...")
         transcript_service = TranscriptService()
+        
+        print("DEBUG: Processing audio with TranscriptService...")
         converted_text, corrected_text = transcript_service.process_audio(audio_file)
+        
+        print(f"DEBUG: Processing complete - Converted: '{converted_text}', Corrected: '{corrected_text}'")
         
         # Create transcript record
         transcript = Transcript.objects.create(
@@ -77,11 +82,16 @@ def transcribe_audio(request):
             corrected_text=corrected_text
         )
         
+        print(f"DEBUG: Created transcript record with ID: {transcript.id}")
+        
         # Return response
         serializer = TranscriptSerializer(transcript)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
         
     except Exception as e:
+        print(f"ERROR in transcribe_audio view: {e}")
+        import traceback
+        traceback.print_exc()
         return Response(
             {'error': f'Processing failed: {str(e)}'}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR

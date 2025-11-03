@@ -137,17 +137,24 @@ class GrammarCorrectionService:
 
 
 class TranscriptService:
-    """Main service for handling transcript operations with enhanced preprocessing."""
+    """Main service for handling transcript operations with simplified but robust processing."""
     
     def __init__(self):
         self.speech_service = SpeechToTextService()
         self.grammar_service = GrammarCorrectionService()
-        self.audio_preprocessor = AudioPreprocessingService()
-        self.text_postprocessor = TextPostprocessingService()
+        # Initialize preprocessing services with error handling
+        try:
+            self.audio_preprocessor = AudioPreprocessingService()
+            self.text_postprocessor = TextPostprocessingService()
+        except Exception as e:
+            print(f"Warning: Could not initialize preprocessing services: {e}")
+            self.audio_preprocessor = None
+            self.text_postprocessor = None
     
     def process_audio(self, audio_file):
         """
-        Process audio file with enhanced pipeline: noise reduction, transcription, text cleaning, and grammar correction.
+        Process audio file with simplified pipeline: direct transcription and grammar correction.
+        Falls back gracefully if advanced preprocessing fails.
         
         Args:
             audio_file: Django UploadedFile object
@@ -155,64 +162,67 @@ class TranscriptService:
         Returns:
             tuple: (converted_text, corrected_text)
         """
-        cleaned_audio_path = None
+        temp_file_path = None
         
         try:
-            # Step 1: Validate audio file
-            if not self.audio_preprocessor.validate_audio_file(audio_file):
-                raise ValueError("Invalid audio file format or size")
+            print("DEBUG: Starting simplified audio processing pipeline...")
             
-            # Step 2: Apply noise reduction and preprocessing
-            print("DEBUG: Starting audio preprocessing...")
-            cleaned_audio_path = self.audio_preprocessor.reduce_noise(audio_file)
+            # Step 1: Save uploaded file temporarily for processing
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_file:
+                for chunk in audio_file.chunks():
+                    temp_file.write(chunk)
+                temp_file_path = temp_file.name
             
-            # Step 3: Transcribe cleaned audio to text
-            print("DEBUG: Starting transcription...")
-            raw_transcribed_text = self.speech_service.transcribe_audio(cleaned_audio_path)
+            print(f"DEBUG: Audio file saved to: {temp_file_path}")
+            print(f"DEBUG: Audio file size: {os.path.getsize(temp_file_path)} bytes")
             
-            # Step 4: Clean transcribed text (remove duplicates, etc.)
-            print("DEBUG: Starting text postprocessing...")
-            converted_text = self.text_postprocessor.clean_transcription(raw_transcribed_text)
+            # Step 2: Direct transcription with Whisper
+            print("DEBUG: Starting Whisper transcription...")
+            try:
+                raw_transcribed_text = self.speech_service.transcribe_audio(temp_file_path)
+                print(f"DEBUG: Raw Whisper result: '{raw_transcribed_text}'")
+            except Exception as whisper_error:
+                print(f"ERROR: Whisper transcription failed: {whisper_error}")
+                raise
             
-            # Step 5: Apply grammar correction
-            print("DEBUG: Starting grammar correction...")
-            corrected_text = self.grammar_service.correct_grammar(converted_text)
+            # Step 3: Basic text cleaning (if postprocessor available)
+            if self.text_postprocessor and hasattr(self.text_postprocessor, 'clean_transcription'):
+                try:
+                    converted_text = self.text_postprocessor.clean_transcription(raw_transcribed_text)
+                    print(f"DEBUG: Cleaned text: '{converted_text}'")
+                except Exception as clean_error:
+                    print(f"Warning: Text cleaning failed, using raw text: {clean_error}")
+                    converted_text = raw_transcribed_text.strip()
+            else:
+                # Basic cleaning without postprocessor
+                converted_text = raw_transcribed_text.strip()
+                print(f"DEBUG: Basic cleaning applied: '{converted_text}'")
             
-            print(f"DEBUG: Final pipeline results - Original: '{raw_transcribed_text}' -> Cleaned: '{converted_text}' -> Corrected: '{corrected_text}'")
+            # Step 4: Grammar correction (with fallback)
+            try:
+                print("DEBUG: Starting grammar correction...")
+                corrected_text = self.grammar_service.correct_grammar(converted_text)
+                print(f"DEBUG: Grammar corrected: '{corrected_text}'")
+            except Exception as grammar_error:
+                print(f"Warning: Grammar correction failed, using cleaned text: {grammar_error}")
+                corrected_text = converted_text
+            
+            print(f"DEBUG: Final results - Converted: '{converted_text}' -> Corrected: '{corrected_text}'")
             
             return converted_text, corrected_text
             
         except Exception as e:
-            print(f"Error in enhanced audio processing pipeline: {e}")
-            # Fallback to basic processing if enhanced pipeline fails
-            try:
-                print("DEBUG: Falling back to basic processing...")
-                # Save audio file temporarily for basic processing
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_file:
-                    for chunk in audio_file.chunks():
-                        temp_file.write(chunk)
-                    temp_file_path = temp_file.name
-                
-                # Basic transcription
-                raw_text = self.speech_service.transcribe_audio(temp_file_path)
-                cleaned_text = self.text_postprocessor.clean_transcription(raw_text)
-                corrected_text = self.grammar_service.correct_grammar(cleaned_text)
-                
-                # Cleanup
-                os.unlink(temp_file_path)
-                
-                return cleaned_text, corrected_text
-                
-            except Exception as fallback_error:
-                print(f"Fallback processing also failed: {fallback_error}")
-                raise
+            print(f"ERROR: Audio processing failed: {e}")
+            import traceback
+            traceback.print_exc()
+            raise Exception(f"Failed to process audio: {str(e)}")
         
         finally:
-            # Clean up preprocessed audio file
-            if cleaned_audio_path and os.path.exists(cleaned_audio_path):
+            # Always clean up temporary files
+            if temp_file_path and os.path.exists(temp_file_path):
                 try:
-                    os.unlink(cleaned_audio_path)
-                    print(f"DEBUG: Cleaned up temporary file: {cleaned_audio_path}")
+                    os.unlink(temp_file_path)
+                    print(f"DEBUG: Cleaned up temporary file: {temp_file_path}")
                 except Exception as cleanup_error:
-                    print(f"Warning: Failed to cleanup temporary file {cleaned_audio_path}: {cleanup_error}")
+                    print(f"Warning: Failed to cleanup temporary file {temp_file_path}: {cleanup_error}")
 
